@@ -1,0 +1,4 @@
+nltk
+numpy
+torchtext>=0.4.0
+tqdm
