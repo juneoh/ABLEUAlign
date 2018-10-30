@@ -52,6 +52,7 @@ def align(target, reference, max_threshold=MAX_THRESHOLD,
                     alignment = t
                     highscore = score
 
-        offset = (offset + (alignment - r)) / 2
+        if alignment is not None:
+            offset = (offset + (alignment - r)) / 2
 
         yield target[alignment].strip() if alignment is not None else ''
