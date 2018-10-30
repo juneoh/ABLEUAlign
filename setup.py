@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='ableualign',
-      version='0.0.1',
+      version='0.1.1',
       description='Sentence alignment using Advanced BLEU metrics',
       url='https://github.com/juneoh/ableualign',
       author='June Oh',

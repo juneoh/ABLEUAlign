@@ -8,7 +8,7 @@ import torch
 from torch.nn.functional import cosine_similarity
 from torchtext.vocab import pretrained_aliases
 
-from .args import VOCAB
+from .args import DEVICE, VOCAB
 
 
 class IrrationalFraction:
@@ -49,12 +49,14 @@ class Similarity:
         except KeyError:
             similarity = cosine_similarity(
                 self._vector(word1), self._vector(word2), dim=0).item()
+            similarity = (similarity + 1) / 2
             self._cache[pair] = similarity
 
             return similarity
 
 
-def modified_precision(references, hypothesis, n, similarity):
+def modified_precision(references, hypothesis, n, similarity,
+                       device=DEVICE):
     if len(hypothesis) < n:
         return IrrationalFraction(0, 1)
 
@@ -67,7 +69,7 @@ def modified_precision(references, hypothesis, n, similarity):
             continue
 
         reference_counts = Counter(ngrams(reference, n))
-        similarity_tensor= []
+        similarity_tensor = []
         clip_vector = []
 
         for hypothesis_ngram in hypothesis_counts:
@@ -82,23 +84,29 @@ def modified_precision(references, hypothesis, n, similarity):
             clip_vector.append(min(hypothesis_counts[hypothesis_ngram],
                                    sum(reference_counts.values())))
 
-        similarity_tensor = torch.Tensor(similarity_tensor)
-        clip_vector = torch.Tensor(clip_vector)
+        similarity_tensor = torch.Tensor(similarity_tensor, device=device)
+        clip_vector = torch.Tensor(clip_vector, device=device)
         numerator_matrix.append(
             similarity_tensor.mean(dim=1).max(dim=1)[0] * clip_vector)
 
+    numerator = torch.stack(
+        numerator_matrix).max(dim=0)[0].sum().item()
+
     fraction = IrrationalFraction(
-        numerator=torch.stack(numerator_matrix).max(dim=0)[0].sum().item(),
+        numerator=numerator,
         denominator=max(1, sum(hypothesis_counts.values())))
 
     return fraction
 
 
-def sentence_ableu(references, hypothesis, similarity=None, *args, **kwargs):
+def sentence_ableu(references, hypothesis, similarity=None, device=DEVICE,
+                   *args, **kwargs):
     if similarity is None:
         similarity = Similarity()
 
+    modified_precision_ = partial(modified_precision, similarity=similarity,
+                                  device=device)
     with patch('nltk.translate.bleu_score.modified_precision',
-               partial(modified_precision, similarity=similarity)):
+               modified_precision_):
         with patch('nltk.translate.bleu_score.Fraction', IrrationalFraction):
             return sentence_bleu(references, hypothesis, *args, **kwargs)

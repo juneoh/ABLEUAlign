@@ -1,10 +1,20 @@
 from .ableu_score import sentence_ableu, Similarity
-from .args import MAX_THRESHOLD, MIN_THRESHOLD, WINDOW_SIZE, VOCAB
+from .args import DEVICE, MAX_THRESHOLD, MIN_THRESHOLD, WINDOW_SIZE, VOCAB
 
+
+def _prepare_sentence(sentence):
+    if sentence[-1] == '.':
+        sentence = sentence[:-1]
+
+    return sentence.strip().split()
+
+def _drop(p_n, references, hyp_len, *args, **kwargs):
+    new_p_n = p_n[:min(hyp_len, *[len(reference) for reference in references])]
+    return new_p_n
 
 def align(target, reference, max_threshold=MAX_THRESHOLD,
           min_threshold=MIN_THRESHOLD, window_size=WINDOW_SIZE,
-          vocab=VOCAB, cache_dir=None):
+          device=DEVICE, vocab=VOCAB, cache_dir=None):
     similarity = Similarity(vocab, cache_dir)
 
     for r in range(len(reference)):
@@ -21,9 +31,15 @@ def align(target, reference, max_threshold=MAX_THRESHOLD,
                 except IndexError:
                     continue
 
-                score = sentence_ableu([reference[r].strip().split()],
-                                       target[t].strip().split(),
-                                       similarity=similarity)
+                reference_sentence = _prepare_sentence(reference[r])
+                target_sentence = _prepare_sentence(target[t])
+
+                score = sentence_ableu([reference_sentence],
+                                       target_sentence,
+                                       similarity=similarity,
+                                       device=device,
+                                       auto_reweigh=True,
+                                       smoothing_function=_drop)
 
                 if score > max_threshold:
                     alignment = t

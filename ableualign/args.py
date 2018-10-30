@@ -7,6 +7,7 @@ MAX_THRESHOLD = 0.9
 MIN_THRESHOLD = 0.4
 VOCAB = 'glove.840B.300d'
 PROGRESS = False
+DEVICE = 'cpu'
 
 
 def get_parser():
@@ -42,5 +43,8 @@ def get_parser():
     parser.add_argument(
         '--progress', '-p', action='store_true', default=PROGRESS,
         help='Show progress bar.')
+    parser.add_argument(
+        '--device', '-d', default=DEVICE,
+        help='The `torch.device` value to use in calculations.')
 
     return parser

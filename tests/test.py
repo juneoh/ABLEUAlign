@@ -38,8 +38,8 @@ class TestABLEU(TestCase):
         precision = ableu_score.modified_precision([reference], hypothesis, 
                                              similarity=self.similarity, n=1)
         self.assertEquals(
-            float(precision),
-            self.similarity(reference[0], hypothesis[0]),
+            round(float(precision), 6),
+            round(self.similarity(reference[0], hypothesis[0]), 6),
             'The precision of two monograms should be their distance')
 
     def test_precision_bigram(self):
@@ -75,7 +75,9 @@ class TestAlign(TestCase):
                        'Specification is better than implied',
                        'Simplicity is better than complexity']
 
-        aligned = [sentence for sentence in align(query, translation)]
-        self.assertEquals(
-            aligned,
-            answer)
+        for device in ('cpu', 'cuda'):
+            aligned = [sentence for sentence in align(query, translation,
+                                                      device=device)]
+            self.assertEquals(
+                aligned,
+                answer)
