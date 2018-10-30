@@ -1,4 +1,4 @@
-from .ableu import sentence_ableu, Similarity
+from .ableu_score import sentence_ableu, Similarity
 from .args import MAX_THRESHOLD, MIN_THRESHOLD, WINDOW_SIZE, VOCAB
 
 

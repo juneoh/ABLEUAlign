@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from fractions import Fraction
 from functools import partial
 from unittest.mock import patch
 
@@ -10,6 +9,15 @@ from torch.nn.functional import cosine_similarity
 from torchtext.vocab import pretrained_aliases
 
 from .args import VOCAB
+
+
+class IrrationalFraction:
+    def __init__(self, numerator, denominator, *args, **kwargs):
+        self.numerator = numerator
+        self.denominator = denominator
+
+    def __float__(self):
+        return self.numerator / self.denominator
 
 
 class Similarity:
@@ -47,30 +55,43 @@ class Similarity:
 
 
 def modified_precision(references, hypothesis, n, similarity):
+    if len(hypothesis) < n:
+        return IrrationalFraction(0, 1)
+
     hypothesis_counts = Counter(ngrams(hypothesis, n))
 
-    ngrams_similarity = {}
+    numerator_matrix = []
     for reference in references:
+        if len(reference) < n:
+            numerator_matrix.append(torch.zeros([len(hypothesis_counts)]))
+            continue
+
         reference_counts = Counter(ngrams(reference, n))
+        similarity_tensor= []
+        clip_vector = []
 
         for hypothesis_ngram in hypothesis_counts:
-            for reference_ngram in reference_counts:
-                ngram_similarity = np.mean([
-                    similarity(hypothesis_ngram[i], reference_ngram[i])
-                    for i in range(n)
-                ])
-                # Clip
-                ngram_similarity *= min(hypothesis_counts[hypothesis_ngram],
-                                        reference_counts[reference_ngram])
 
-                ngrams_similarity[hypothesis_ngram] = max(
-                    ngrams_similarity.get(hypothesis_ngram, 0),
-                    ngram_similarity)
+            similarity_vector = []
+            for w in range(n):
+                similarity_vector.append([
+                    similarity(hypothesis_ngram[w], reference_ngram[w])
+                    for reference_ngram in reference_counts])
+            similarity_tensor.append(similarity_vector)
 
-    numerator = sum(ngrams_similarity.values())
-    denominator = max(1, sum(hypothesis_counts.values()))
+            clip_vector.append(min(hypothesis_counts[hypothesis_ngram],
+                                   sum(reference_counts.values())))
 
-    return Fraction.from_float(numerator / denominator)
+        similarity_tensor = torch.Tensor(similarity_tensor)
+        clip_vector = torch.Tensor(clip_vector)
+        numerator_matrix.append(
+            similarity_tensor.mean(dim=1).max(dim=1)[0] * clip_vector)
+
+    fraction = IrrationalFraction(
+        numerator=torch.stack(numerator_matrix).max(dim=0)[0].sum().item(),
+        denominator=max(1, sum(hypothesis_counts.values())))
+
+    return fraction
 
 
 def sentence_ableu(references, hypothesis, similarity=None, *args, **kwargs):
@@ -79,4 +100,5 @@ def sentence_ableu(references, hypothesis, similarity=None, *args, **kwargs):
 
     with patch('nltk.translate.bleu_score.modified_precision',
                partial(modified_precision, similarity=similarity)):
-        return sentence_bleu(references, hypothesis, *args, **kwargs)
+        with patch('nltk.translate.bleu_score.Fraction', IrrationalFraction):
+            return sentence_bleu(references, hypothesis, *args, **kwargs)
