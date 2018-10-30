@@ -16,6 +16,7 @@ def align(target, reference, max_threshold=MAX_THRESHOLD,
           min_threshold=MIN_THRESHOLD, window_size=WINDOW_SIZE,
           device=DEVICE, vocab=VOCAB, cache_dir=None):
     similarity = Similarity(vocab, cache_dir)
+    offset = 0
 
     for r in range(len(reference)):
         alignment = None
@@ -24,7 +25,9 @@ def align(target, reference, max_threshold=MAX_THRESHOLD,
 
             highscore = min_threshold
 
-            for t in range(r - window_size // 2, r + window_size // 2):
+            start = round(r + offset - window_size / 2)
+
+            for t in range(start, start + window_size):
                 try:
                     if not target[t]:
                         continue
@@ -48,5 +51,7 @@ def align(target, reference, max_threshold=MAX_THRESHOLD,
                 elif score > highscore:
                     alignment = t
                     highscore = score
+
+        offset = (offset + (alignment - r)) / 2
 
         yield target[alignment].strip() if alignment is not None else ''
