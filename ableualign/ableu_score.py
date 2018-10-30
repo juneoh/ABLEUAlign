@@ -84,8 +84,8 @@ def modified_precision(references, hypothesis, n, similarity,
             clip_vector.append(min(hypothesis_counts[hypothesis_ngram],
                                    sum(reference_counts.values())))
 
-        similarity_tensor = torch.Tensor(similarity_tensor, device=device)
-        clip_vector = torch.Tensor(clip_vector, device=device)
+        similarity_tensor = torch.Tensor(similarity_tensor).to(device)
+        clip_vector = torch.Tensor(clip_vector).to(device)
         numerator_matrix.append(
             similarity_tensor.mean(dim=1).max(dim=1)[0] * clip_vector)
 
